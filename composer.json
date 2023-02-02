@@ -1,0 +1,29 @@
+{
+    "name": "bardiz12/laravel-connection-pool",
+    "description": "Laravel Connection Pool",
+    "type": "library",
+    "autoload": {
+        "psr-4": {
+            "Bardiz12\\LaravelConnectionPool\\": "src/"
+        }
+    },
+    "authors": [
+        {
+            "name": "Bardizba Z",
+            "email": "moch.bardizba@gmail.com"
+        }
+    ],
+    "minimum-stability": "dev",
+    "require": {
+        "openswoole/core": "^22.1",
+        "php": "^8.1",
+        "illuminate/database": "^9.0"
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Bardiz12\\LaravelConnectionPool\\LaravelConnectionPoolServiceProvider"
+            ]
+        }
+    }
+}
