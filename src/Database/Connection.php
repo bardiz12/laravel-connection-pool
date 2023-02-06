@@ -2,6 +2,7 @@
 
 namespace Bardiz12\LaravelConnectionPool\Database;
 
+use Bardiz12\LaravelConnectionPool\Facades\ConnectionPool;
 use PDO;
 use Closure;
 use Exception;
@@ -29,11 +30,11 @@ use Illuminate\Database\Events\TransactionCommitting;
 use Illuminate\Database\Events\TransactionRolledBack;
 use Illuminate\Database\Query\Builder as QueryBuilder;
 use Illuminate\Database\Schema\Builder as SchemaBuilder;
-use Bardiz12\LaravelConnectionPool\Connection\ConnectionPool;
+use Illuminate\Database\MultipleColumnsSelectedException;
 use Illuminate\Database\Query\Grammars\Grammar as QueryGrammar;
 use OpenSwoole\Core\Coroutine\Client\PDOStatementProxy as PDOStatement;
 
-class Connection  implements ConnectionInterface
+class Connection implements ConnectionInterface
 {
     use DetectsConcurrencyErrors,
         DetectsLostConnections,
@@ -227,6 +228,7 @@ class Connection  implements ConnectionInterface
      */
     public function __construct($pdo, $database = '', $tablePrefix = '', array $config = [])
     {
+        // var_dump(get_called_class() . ' called');
         $this->pdo = $pdo;
 
         // First we will setup the default properties. We keep track of the DB
@@ -475,7 +477,7 @@ class Connection  implements ConnectionInterface
      * @param  \PDOStatement  $statement
      * @return \PDOStatement
      */
-    protected function prepared(PDOStatement $statement)
+    protected function prepared($statement)
     {
         $statement->setFetchMode($this->fetchMode);
 
@@ -700,6 +702,63 @@ class Connection  implements ConnectionInterface
         }
 
         return $bindings;
+    }
+
+    /**
+     * Run a SQL statement and log its execution context.
+     *
+     * @param  string  $query
+     * @param  array  $bindings
+     * @param  \Closure  $callback
+     * @return mixed
+     *
+     * @throws \Illuminate\Database\QueryException
+     */
+    protected function run($query, $bindings, Closure $callback)
+    {
+        foreach ($this->beforeExecutingCallbacks as $beforeExecutingCallback) {
+            $beforeExecutingCallback($query, $bindings, $this);
+        }
+
+        // if($this->getPdo() === null){
+        // if ($this->transactions < 1) {
+        $this->pdo = ConnectionPool::get($this->config['name']);
+        // }
+
+        // }
+
+        $this->reconnectIfMissingConnection();
+
+        $start = microtime(true);
+
+        // Here we will run this query. If an exception occurs we'll determine if it was
+        // caused by a connection that has been lost. If that is the cause, we'll try
+        // to re-establish connection and re-run the query with a fresh connection.
+        try {
+            $result = $this->runQueryCallback($query, $bindings, $callback);
+        } catch (QueryException $e) {
+            $result = $this->handleQueryException(
+                $e,
+                $query,
+                $bindings,
+                $callback
+            );
+        }
+
+        // Once we have run the query we will calculate the time that it took to run and
+        // then log the query, bindings, and execution time so we will report them on
+        // the event that the developer needs them. We'll log time in milliseconds.
+        // $this->logQuery(
+        //     $query, $bindings, $this->getElapsedTime($start)
+        // );
+        // var_dump("PUT BACK " . $this->config['name']. ' | ' . ($this->pdo instanceof Closure ? "closure" : "no"));
+        ConnectionPool::putBack($this->config['name'], $this->pdo);
+        // $new = ConnectorPool::get($this->config['name'])->get();
+        // var_dump("GET new " . ($this->config['name']) . ' ' . ($new instanceof Closure ? "closure" : "no"));
+        // $this->setPdo(ConnectorPool::get($this->config['name']));
+        $this->setPdo(null);
+
+        return $result;
     }
 
     /**
@@ -1151,6 +1210,8 @@ class Connection  implements ConnectionInterface
     public function getPdo()
     {
         if ($this->pdo instanceof Closure) {
+            // var_dump($this->pdo);
+            // dump($this->pdo);
             return $this->pdo = call_user_func($this->pdo);
         }
 
@@ -1174,6 +1235,7 @@ class Connection  implements ConnectionInterface
      */
     public function getReadPdo()
     {
+        return $this->getPdo();
         if ($this->transactions > 0) {
             return $this->getPdo();
         }
@@ -1300,7 +1362,7 @@ class Connection  implements ConnectionInterface
      * @param  \Illuminate\Database\Query\Grammars\Grammar  $grammar
      * @return $this
      */
-    public function setQueryGrammar(Query\Grammars\Grammar $grammar)
+    public function setQueryGrammar(\Illuminate\Database\Query\Grammars\Grammar $grammar)
     {
         $this->queryGrammar = $grammar;
 
@@ -1323,7 +1385,7 @@ class Connection  implements ConnectionInterface
      * @param  \Illuminate\Database\Schema\Grammars\Grammar  $grammar
      * @return $this
      */
-    public function setSchemaGrammar(Schema\Grammars\Grammar $grammar)
+    public function setSchemaGrammar(\Illuminate\Database\Schema\Grammars\Grammar $grammar)
     {
         $this->schemaGrammar = $grammar;
 
@@ -1536,7 +1598,7 @@ class Connection  implements ConnectionInterface
      * @param  \Illuminate\Database\Grammar  $grammar
      * @return \Illuminate\Database\Grammar
      */
-    public function withTablePrefix(Grammar $grammar)
+    public function withTablePrefix(\Illuminate\Database\Grammar $grammar)
     {
         $grammar->setTablePrefix($this->tablePrefix);
 
@@ -1564,53 +1626,5 @@ class Connection  implements ConnectionInterface
     public static function getResolver($driver)
     {
         return static::$resolvers[$driver] ?? null;
-    }
-
-    /**
-     * Run a SQL statement and log its execution context.
-     *
-     * @param  string  $query
-     * @param  array  $bindings
-     * @param  \Closure  $callback
-     * @return mixed
-     *
-     * @throws \Illuminate\Database\QueryException
-     */
-    protected function run($query, $bindings, Closure $callback)
-    {
-        foreach ($this->beforeExecutingCallbacks as $beforeExecutingCallback) {
-            $beforeExecutingCallback($query, $bindings, $this);
-        }
-
-        $this->reconnectIfMissingConnection();
-
-        $start = microtime(true);
-
-        // Here we will run this query. If an exception occurs we'll determine if it was
-        // caused by a connection that has been lost. If that is the cause, we'll try
-        // to re-establish connection and re-run the query with a fresh connection.
-        try {
-            $result = $this->runQueryCallback($query, $bindings, $callback);
-        } catch (QueryException $e) {
-            $result = $this->handleQueryException(
-                $e,
-                $query,
-                $bindings,
-                $callback
-            );
-        }
-
-        // Once we have run the query we will calculate the time that it took to run and
-        // then log the query, bindings, and execution time so we will report them on
-        // the event that the developer needs them. We'll log time in milliseconds.
-        $this->logQuery(
-            $query,
-            $bindings,
-            $this->getElapsedTime($start)
-        );
-        // DbPool::restore($this->config['name']);
-        // dd($this->config['nam'])
-        ConnectionPool::putBack($this->getName(), $this->pdo);
-        return $result;
     }
 }

@@ -2,13 +2,13 @@
 
 namespace Bardiz12\LaravelConnectionPool\Database\Connectors;
 
-use App\Connection\ConnectorPool;
-use Bardiz12\LaravelConnectionPool\Connection\ConnectionPool;
-use Doctrine\DBAL\Driver\PDOConnection;
-use Exception;
-use Illuminate\Database\DetectsLostConnections;
 use PDO;
+use Exception;
 use Throwable;
+use Doctrine\DBAL\Driver\PDOConnection;
+use Illuminate\Database\DetectsLostConnections;
+use OpenSwoole\Core\Coroutine\Client\PDOClient;
+use Bardiz12\LaravelConnectionPool\Facades\ConnectionPool;
 
 class Connector
 {
@@ -69,18 +69,11 @@ class Connector
      * @param  string  $username
      * @param  string  $password
      * @param  array  $options
-     * @return \PDO
+     * @return PDOClient
      */
     protected function createPdoConnection($dsn, $username, $password, $options, $config)
     {
-        // if (class_exists(PDOConnection::class) && ! $this->isPersistentConnection($options)) {
-        //     return new PDOConnection($dsn, $username, $password, $options);
-        // }
-        $pool = ConnectionPool::get($config['name'])->get();
-            
-        return $pool;
-
-        // return new PDO($dsn, $username, $password, $options);
+        return ConnectionPool::get($config['name']);
     }
 
     /**

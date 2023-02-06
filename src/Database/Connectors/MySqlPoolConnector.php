@@ -6,7 +6,7 @@ use PDO;
 use Illuminate\Database\Connectors\ConnectorInterface;
 use Bardiz12\LaravelConnectionPool\Database\Connectors\Connector;
 
-class MySqlConnector extends Connector implements ConnectorInterface
+class MySqlPoolConnector extends Connector implements ConnectorInterface
 {
     /**
      * Establish a database connection.
@@ -25,9 +25,6 @@ class MySqlConnector extends Connector implements ConnectorInterface
         // connection's behavior, and some might be specified by the developers.
         $connection = $this->createConnection($dsn, $config, $options);
         // dump($connection);
-        if (! empty($config['database'])) {
-            // $connection->exec("use `{$config['database']}`;");
-        }
 
         $this->configureIsolationLevel($connection, $config);
 
