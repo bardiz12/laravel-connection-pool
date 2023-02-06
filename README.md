@@ -11,7 +11,7 @@ This package still under development, currently no stable version is released. o
 - MySql
 
 ## Instalation :
-- ```composer require "bardiz12/laravel-connection:dev-master"```
+- ```composer require "bardiz12/laravel-connection:dev-main"```
 - setup database config
     - change database's driver to `mysql-pool`
     - you can set `pool_count` config to define default connection that will be made
