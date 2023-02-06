@@ -2,6 +2,7 @@
     "name": "bardiz12/laravel-connection-pool",
     "description": "Laravel Connection Pool",
     "type": "library",
+    "license": "MIT",
     "autoload": {
         "psr-4": {
             "Bardiz12\\LaravelConnectionPool\\": "src/"
