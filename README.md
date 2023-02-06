@@ -1,4 +1,4 @@
-# Connection Pool Driver for Mysql
+# Connection Pool Driver for Laravel
 
 This Package is using **openswoole** to achieve connection pooling in Laravel.
 

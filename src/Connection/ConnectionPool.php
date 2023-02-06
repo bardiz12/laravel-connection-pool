@@ -26,7 +26,7 @@ class ConnectionPool
     public function load($name)
     {
         if (!isset($this->pools[$name])) {
-            echo "init " . $name . "\n";
+            // echo "init " . $name . "\n";
             // $pools[$name] = 
             $dbConfig = $this->app['config']['database']['connections'][$name];
             // dump($dbConfig);
